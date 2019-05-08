@@ -1,0 +1,111 @@
+---
+title: "HomeWork08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Required packages
+
+install.packages("quantmod")
+install.packages("ellipse")
+install.packages("PerformanceAnalytics")
+install.packages("zoo")
+install.packages("readxl")
+install.packages("writexl")
+```{r}
+library(quantmod)
+library(ellipse)
+library(PerformanceAnalytics)   
+library(zoo)
+library(readxl)
+library(writexl)
+```
+
+# Download and read the csv data
+
+```{r}
+FamaFrench = read.csv('FamaFrench_mon_69_98_3stocks.csv')
+head(FamaFrench)
+class(FamaFrench)
+str(FamaFrench)
+```
+
+## Use multivariate regression and matrix algebra
+
+```{r}
+returns.mat = as.matrix(FamaFrench[, c(-1, -2,-3, -4, -5, -9 )])
+market.mat = as.matrix(FamaFrench[,2, drop=F])
+n.obs = nrow(returns.mat)
+X.mat = cbind(rep(1,n.obs),market.mat)
+colnames(X.mat)[1] = "intercept"
+XX.mat = crossprod(X.mat)
+```
+
+# Multivariate Least Squares
+
+```{r}
+G.hat = solve(XX.mat)%*%crossprod(X.mat,returns.mat)
+```
+
+# Can also use solve(qr(X.mat), returns.mat)
+
+```{r}
+beta.hat = G.hat[2,]
+E.hat = returns.mat - X.mat%*%G.hat
+diagD.hat = diag(crossprod(E.hat)/(n.obs-2))
+```
+
+# Compute R2 values from multivariate regression
+
+```{r}
+sumSquares = apply(returns.mat, 2, function(x) {sum( (x - mean(x))^2 )})
+R.square = 1 - (n.obs-2)*diagD.hat/sumSquares
+R.square
+```
+
+# Print and plot results
+
+```{r}
+cbind(beta.hat, diagD.hat, R.square)
+par(mfrow=c(1,2))
+barplot(beta.hat, horiz=T, main="Beta values", col="blue", cex.names = 0.75, las=1)
+barplot(R.square, horiz=T, main="R-square values", col="blue", cex.names = 0.75, las=1)
+par(mfrow=c(1,1))
+```
+
+# Compute single index model covariance/correlation matrices
+
+```{r}
+cov.si = as.numeric(var(market.mat))*beta.hat%*%t(beta.hat) + diag(diagD.hat)
+cor.si = cov2cor(cov.si)
+```
+
+# Compute global min variance portfolio
+# Use single index covariance
+
+```{r}
+w.gmin.si = solve(cov.si)%*%rep(1,nrow(cov.si))
+w.gmin.si = w.gmin.si/sum(w.gmin.si)
+colnames(w.gmin.si) = "single.index"
+```
+
+# Use sample covariance
+
+```{r}
+w.gmin.sample = solve(var(returns.mat))%*%rep(1,nrow(cov.si))
+w.gmin.sample = w.gmin.sample/sum(w.gmin.sample)
+colnames(w.gmin.sample) = "sample"
+cbind(w.gmin.si, sample = w.gmin.sample)
+```
+
+# Plot Single Index and Sample Weights
+
+```{r}
+par(mfrow=c(2,1))
+barplot(t(w.gmin.si), horiz=F, main="Single Index Weights", col="blue", cex.names = 0.75, las=2)
+barplot(t(w.gmin.sample), horiz=F, main="Sample Weights", col="blue", cex.names = 0.75, las=2)
+par(mfrow=c(1,1))
+```

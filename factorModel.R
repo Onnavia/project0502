@@ -11,8 +11,12 @@
 options(width = 70, digits=4)
 
 # load required packages
+install.packages('ellipse')
+install.packages('PerformanceAnalytics')
+install.packages('zoo')
+install.packages('readxl')
+install.packages('writexl')
 library(ellipse)
-library(fEcofin)                # various data sets
 library(PerformanceAnalytics)   # performance and risk analysis functions
 library(zoo)
 library(readxl)
@@ -33,7 +37,7 @@ retdata = read_excel("berndt.xlsx")
 retdata
 str(retdata)
 # create data frame with dates as rownames
-# berndt.df = retdata[, -1]
+#berndt.df = retdata[, -1]
 #rownames(berndt.df) = as.character(berndtInvest[, 1])
 #colnames(berndt.df)
 
@@ -98,9 +102,9 @@ mu.gmin.sample = as.numeric(crossprod(w.gmin.sample, mu.vals))
 sd.gmin.sample = as.numeric(sqrt(t(w.gmin.sample)%*%var(returns.mat)%*%w.gmin.sample))
 cbind(mu.gmin.si,mu.gmin.sample, sd.gmin.si, sd.gmin.sample)
 
-##
-## use lm function to compute single index model regressions for each asset
-##
+#===========================================================================
+# Use lm function to compute single index model regressions for each asset
+#===========================================================================
 
 asset.names = colnames(returns.mat)
 asset.names
@@ -198,12 +202,17 @@ F.hat.df<-data.frame(t(F.hat))
 F.hat.df$date<-as.Date(retdata$date)
 #
 library(reshape2)
+library(tidyverse)
+
   # plot muliple time series using ggplot 
-F.hat.df %>% melt("date") %>% 
+             A<-melt(F.hat.df,"date")      #original codings
+             ggplot(A,aes(x=date, y=value))
+  #percentage = pipe functions, don't have to type the data again like above             
+p<-F.hat.df %>% melt("date") %>% 
   ggplot(aes(x = date, y = value, group=variable,color=variable)) +
     geom_line() +
     scale_x_date()
-
+p
 # Compute residual variance from OLS regression ---- 
   # compute N x T matrix of industry factor model residuals
 E.hat = returns.mat - B.mat%*%F.hat
@@ -221,21 +230,22 @@ t(H.hat)
 colSums(t(H.hat))
 
 # compare OLS and GLS fits
-F.hat.gls.zoo = zoo(t(F.hat.gls), as.Date(colnames(F.hat.gls)))
+F.hat.gls.zoo = zoo(t(F.hat.gls), as.Date(retdata$date))
+F.hat.df.zoo = zoo(t(F.hat.df[, -4]), as.Date(retdata$date))
 par(mfrow=c(3,1))
-plot(merge(F.hat.zoo[,1], F.hat.gls.zoo[,1]), plot.type="single",
+plot(merge(F.hat.df.zoo[,1], F.hat.gls.zoo[,1]), plot.type="single",
      main = "OLS and GLS estimates of TECH factor",
      col=c("black", "blue"), lwd=2, ylab="Return")
 legend(x = "bottomleft", legend=c("OLS", "GLS"), col=c("black", "blue"), lwd=2)
 abline(h=0)
 
-plot(merge(F.hat.zoo[,2], F.hat.gls.zoo[,2]), plot.type="single",
+plot(merge(F.hat.df.zoo[,2], F.hat.gls.zoo[,2]), plot.type="single",
      main = "OLS and GLS estimates of OIL factor",
      col=c("black", "blue"), lwd=2, ylab="Return")
 legend(x = "bottomleft", legend=c("OLS", "GLS"), col=c("black", "blue"), lwd=2)
 abline(h=0)
 
-plot(merge(F.hat.zoo[,3], F.hat.gls.zoo[,3]), plot.type="single",
+plot(merge(F.hat.df.zoo[,3], F.hat.gls.zoo[,3]), plot.type="single",
      main = "OLS and GLS estimates of OTHER factor",
      col=c("black", "blue"), lwd=2, ylab="Return")
 legend(x = "bottomleft", legend=c("OLS", "GLS"), col=c("black", "blue"), lwd=2)
